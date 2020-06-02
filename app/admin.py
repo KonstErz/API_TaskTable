@@ -22,7 +22,7 @@ class TaskAdmin(admin.ModelAdmin):
         - adds inline addition of task comments in task view (inlines)
     """
 
-    list_display = ('name', 'specification', 'due_date', 'creator', 'display_performer', 'status')
+    list_display = ('name', 'specification', 'due_date', 'creator', 'performer', 'status')
     list_filter = ('status', 'due_date')
     inlines = [CommentInline]
 

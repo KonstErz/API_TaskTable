@@ -6,7 +6,7 @@ from django.contrib.auth.models import User
 class Task(models.Model):
     """
     The Model represents a specific task to be completed,
-    with a specific status, deadline, creator and performer (one or many Users).
+    with a specific status, deadline, creator and performer.
     """
 
     name = models.CharField(max_length=200, help_text='Enter a task name')
@@ -14,7 +14,8 @@ class Task(models.Model):
     due_date = models.DateField(null=True, blank=True)
     creator = models.ForeignKey(User, on_delete=models.SET_NULL,
                                 null=True, blank=True, related_name='task_creator')
-    performer = models.ManyToManyField(User, related_name='task_performer')
+    performer = models.ForeignKey(User, on_delete=models.SET_NULL,
+                                  null=True, blank=True, related_name='task_performer')
 
     TASK_STATUS = (
         ('n', 'New'),
@@ -27,14 +28,6 @@ class Task(models.Model):
 
     class Meta:
         ordering = ['due_date']
-
-    def display_performer(self):
-        """
-        Creates a string for the Performer. This is required to display performer in Admin.
-        """
-        return ', '.join([user.username for user in self.performer.all()])
-
-    display_performer.short_description = 'Performer'
 
     def __str__(self):
         return self.name
