@@ -1,15 +1,15 @@
 from rest_framework.views import APIView
 from .serializers import (RegistrationSerializer, LoginSerializer,
                           TaskCreationSerializer, CommentAddingSerializer,
-                          TaskSerializer)
+                          TaskListSerializer, TaskDetailSerializer, CommentSerializer)
 from django.contrib.auth.models import User
 from rest_framework.authtoken.models import Token
 from rest_framework.response import Response
 from django.contrib.auth import authenticate, login, logout
 from rest_framework.permissions import IsAuthenticated
 from .models import Task, Comment
-from rest_framework import viewsets
-from rest_framework import filters
+from rest_framework import viewsets, status, filters
+from rest_framework.decorators import action
 
 
 class RegistrationView(APIView):
@@ -113,8 +113,40 @@ class CommentAddingView(APIView):
 
 
 class TaskViewSet(viewsets.ModelViewSet):
+    """
+    This ModelViewSet class implements the display of the list of tasks
+    and detailed information about the task (including all comments on it).
+    Allows to create a new task, edit an existing task, and add comments to the task.
+    Includes Search Filter by task name and performer name.
+    Requesting user will be the creator of the task and author of the comment.
+    """
+
     permission_classes = [IsAuthenticated]
     queryset = Task.objects.all().order_by('-due_date')
-    serializer_class = TaskSerializer
+    serializer_class = TaskListSerializer
     filter_backends = [filters.SearchFilter]
-    search_fields = ['name']
+    search_fields = ['name', 'performer__username']
+
+    def perform_create(self, serializer):
+        serializer.save(creator=serializer.context['request'].user)
+
+    def get_serializer_class(self):
+        if self.action == 'retrieve':
+            return TaskDetailSerializer
+
+        elif self.action == 'add_comment':
+            return CommentSerializer
+
+        return super().get_serializer_class()
+
+    @action(detail=True, methods=['post'])
+    def add_comment(self, request, pk=None):
+        task = self.get_object()
+        serializer = CommentSerializer(data=request.data)
+        if serializer.is_valid():
+            Comment.objects.create(task=task, description=serializer.data['description'],
+                                   author=request.user)
+            task.save()
+            return Response({'status': 'comment added'})
+        else:
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

@@ -88,15 +88,63 @@ class CommentAddingSerializer(serializers.Serializer):
         return value
 
 
+class UserSerializer(serializers.ModelSerializer):
+    """
+    Serializes data to display a User model information.
+    """
+
+    class Meta:
+        model = User
+        fields = ['id', 'username', 'email', 'first_name', 'last_name']
+
+
 class CommentSerializer(serializers.ModelSerializer):
+    """
+    Serializes data to display a model for commenting on a task
+    when showing detailed information about a task and adding a comment.
+    """
+
+    post_date = serializers.DateTimeField(format='%d.%m.%Y %H:%M', read_only=True)
+    # author = UserSerializer(read_only=True)
+
+    author = serializers.SlugRelatedField(read_only=True, slug_field='username')
+
     class Meta:
         model = Comment
         fields = ['description', 'author', 'post_date']
+        read_only_fields = ['author', 'post_date']
 
 
-class TaskSerializer(serializers.ModelSerializer):
+class TaskDetailSerializer(serializers.ModelSerializer):
+    """
+    Serializes data to display detailed information about a Task model.
+    """
+
     task_comments = CommentSerializer(many=True, read_only=True)
+    # creator = UserSerializer(read_only=True)
+    # performer = UserSerializer()
+
+    creator = serializers.SlugRelatedField(read_only=True, slug_field='username')
+    performer = serializers.SlugRelatedField(queryset=User.objects.all(), slug_field='username')
 
     class Meta:
         model = Task
         fields = ['id', 'name', 'specification', 'due_date', 'creator', 'performer', 'status', 'task_comments']
+        read_only_fields = ['creator']
+
+
+class TaskListSerializer(serializers.ModelSerializer):
+    """
+    Serializes data to display a list of tasks.
+    """
+
+    # creator = UserSerializer(read_only=True)
+    # performer = UserSerializer()
+
+    creator = serializers.SlugRelatedField(read_only=True, slug_field='username')
+    performer = serializers.SlugRelatedField(queryset=User.objects.all(), slug_field='username')
+
+    class Meta:
+        model = Task
+        fields = ['id', 'name', 'specification', 'due_date', 'creator', 'performer', 'status']
+        read_only_fields = ['creator']
