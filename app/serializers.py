@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from django.contrib.auth.models import User
-from .models import Task
+from .models import Task, Comment
 import datetime
 
 
@@ -86,3 +86,17 @@ class CommentAddingSerializer(serializers.Serializer):
             raise serializers.ValidationError('there is no task with that name')
 
         return value
+
+
+class CommentSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Comment
+        fields = ['description', 'author', 'post_date']
+
+
+class TaskSerializer(serializers.ModelSerializer):
+    task_comments = CommentSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Task
+        fields = ['id', 'name', 'specification', 'due_date', 'creator', 'performer', 'status', 'task_comments']

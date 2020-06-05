@@ -41,7 +41,7 @@ class Comment(models.Model):
     Model representing a comment against a task.
     """
 
-    task = models.ForeignKey(Task, on_delete=models.CASCADE)
+    task = models.ForeignKey(Task, on_delete=models.CASCADE, related_name='task_comments')
     description = models.TextField(help_text='Enter a comment on the task here')
     author = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
     post_date = models.DateTimeField(auto_now=True)
