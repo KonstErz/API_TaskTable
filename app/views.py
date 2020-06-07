@@ -10,6 +10,7 @@ from rest_framework.permissions import IsAuthenticated
 from .models import Task, Comment
 from rest_framework import viewsets, status, filters
 from rest_framework.decorators import action
+from django.core.mail import send_mail
 
 
 class RegistrationView(APIView):
@@ -150,3 +151,13 @@ class TaskViewSet(viewsets.ModelViewSet):
             return Response({'status': 'comment added'})
         else:
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    '''    
+    def create(self, request, *args, **kwargs):
+        response = super(TaskViewSet, self).create(request, *args, **kwargs)
+        send_mail('A new task has been created.',
+                  TaskListSerializer(data=request.data),
+                  'cyrros192@gmail.com',
+                  [request.user.email],
+                  fail_silently=False)
+        return response
+    '''

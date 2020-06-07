@@ -96,6 +96,7 @@ class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ['id', 'username', 'email', 'first_name', 'last_name']
+        read_only_fields = ['id', 'email', 'first_name', 'last_name']
 
 
 class CommentSerializer(serializers.ModelSerializer):
@@ -105,9 +106,8 @@ class CommentSerializer(serializers.ModelSerializer):
     """
 
     post_date = serializers.DateTimeField(format='%d.%m.%Y %H:%M', read_only=True)
-    # author = UserSerializer(read_only=True)
-
-    author = serializers.SlugRelatedField(read_only=True, slug_field='username')
+    author = UserSerializer(read_only=True)
+    # author = serializers.SlugRelatedField(read_only=True, slug_field='username')
 
     class Meta:
         model = Comment
@@ -121,11 +121,10 @@ class TaskDetailSerializer(serializers.ModelSerializer):
     """
 
     task_comments = CommentSerializer(many=True, read_only=True)
-    # creator = UserSerializer(read_only=True)
-    # performer = UserSerializer()
-
-    creator = serializers.SlugRelatedField(read_only=True, slug_field='username')
-    performer = serializers.SlugRelatedField(queryset=User.objects.all(), slug_field='username')
+    creator = UserSerializer(read_only=True)
+    performer = UserSerializer()
+    # creator = serializers.SlugRelatedField(read_only=True, slug_field='username')
+    # performer = serializers.SlugRelatedField(queryset=User.objects.all(), slug_field='username')
 
     class Meta:
         model = Task
@@ -138,11 +137,10 @@ class TaskListSerializer(serializers.ModelSerializer):
     Serializes data to display a list of tasks.
     """
 
-    # creator = UserSerializer(read_only=True)
-    # performer = UserSerializer()
-
-    creator = serializers.SlugRelatedField(read_only=True, slug_field='username')
-    performer = serializers.SlugRelatedField(queryset=User.objects.all(), slug_field='username')
+    creator = UserSerializer(read_only=True)
+    performer = UserSerializer()
+    # creator = serializers.SlugRelatedField(read_only=True, slug_field='username')
+    # performer = serializers.SlugRelatedField(queryset=User.objects.all(), slug_field='username')
 
     class Meta:
         model = Task
