@@ -1,7 +1,8 @@
 from rest_framework.views import APIView
 from .serializers import (RegistrationSerializer, LoginSerializer,
                           TaskCreationSerializer, CommentAddingSerializer,
-                          TaskListSerializer, TaskDetailSerializer, CommentSerializer)
+                          TaskListSerializer, TaskDetailSerializer,
+                          CommentSerializer)
 from django.contrib.auth.models import User
 from rest_framework.authtoken.models import Token
 from rest_framework.response import Response
@@ -126,7 +127,7 @@ class TaskViewSet(viewsets.ModelViewSet):
     queryset = Task.objects.all().order_by('-due_date')
     serializer_class = TaskListSerializer
     filter_backends = [filters.SearchFilter]
-    search_fields = ['name', 'performer__username']
+    search_fields = ['name', 'performer__username']  # Search by performer is not available without a UserSerializer
 
     def perform_create(self, serializer):
         serializer.save(creator=serializer.context['request'].user)
@@ -151,13 +152,25 @@ class TaskViewSet(viewsets.ModelViewSet):
             return Response({'status': 'comment added'})
         else:
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-    '''    
+
+    """
+    When creating or editing a task, an email is sent with information to the creator and performer.
+    """
+
     def create(self, request, *args, **kwargs):
         response = super(TaskViewSet, self).create(request, *args, **kwargs)
         send_mail('A new task has been created.',
-                  TaskListSerializer(data=request.data),
-                  'cyrros192@gmail.com',
-                  [request.user.email],
+                  str(request.data),
+                  'EMAIL_HOST_USER',
+                  [request.user.email],     # Add email to performer
                   fail_silently=False)
         return response
-    '''
+
+    def update(self, request, *args, **kwargs):
+        response = super(TaskViewSet, self).update(request, *args, **kwargs)
+        send_mail('Task has been changed.',
+                  str(request.data),
+                  'EMAIL_HOST_USER',
+                  [request.user.email],  # Add email to performer
+                  fail_silently=False)
+        return response

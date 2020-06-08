@@ -106,7 +106,7 @@ class CommentSerializer(serializers.ModelSerializer):
     """
 
     post_date = serializers.DateTimeField(format='%d.%m.%Y %H:%M', read_only=True)
-    author = UserSerializer(read_only=True)
+    # author = UserSerializer(read_only=True)
     # author = serializers.SlugRelatedField(read_only=True, slug_field='username')
 
     class Meta:
@@ -121,8 +121,8 @@ class TaskDetailSerializer(serializers.ModelSerializer):
     """
 
     task_comments = CommentSerializer(many=True, read_only=True)
-    creator = UserSerializer(read_only=True)
-    performer = UserSerializer()
+    # creator = UserSerializer(read_only=True)
+    # performer = UserSerializer()
     # creator = serializers.SlugRelatedField(read_only=True, slug_field='username')
     # performer = serializers.SlugRelatedField(queryset=User.objects.all(), slug_field='username')
 
@@ -137,8 +137,8 @@ class TaskListSerializer(serializers.ModelSerializer):
     Serializes data to display a list of tasks.
     """
 
-    creator = UserSerializer(read_only=True)
-    performer = UserSerializer()
+    # creator = UserSerializer(read_only=True)
+    # performer = UserSerializer()
     # creator = serializers.SlugRelatedField(read_only=True, slug_field='username')
     # performer = serializers.SlugRelatedField(queryset=User.objects.all(), slug_field='username')
 

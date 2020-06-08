@@ -155,8 +155,13 @@ STATIC_URL = '/static/'
 
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = 'smtp.gmail.com'
-EMAIL_HOST_USER = 'cyrros192@gmail.com'
-EMAIL_HOST_PASSWORD = 'mopassan928593'
+EMAIL_HOST_USER = 'YourEmail@gmail.com'
+EMAIL_HOST_PASSWORD = 'YourPassword'
+"""
+In your Google Account, the function for 'Less secure apps' must be enabled.
+You may also need to go to the https://accounts.google.com/DisplayUnlockCaptcha 
+and follow the instructions that appear.
+"""
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
 EMAIL_USE_SSL = False
