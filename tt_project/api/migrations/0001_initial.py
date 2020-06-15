@@ -35,7 +35,7 @@ class Migration(migrations.Migration):
                 ('description', models.TextField(help_text='Enter a comment on the task here')),
                 ('post_date', models.DateTimeField(auto_now=True)),
                 ('author', models.ForeignKey(null=True, on_delete=django.db.models.deletion.SET_NULL, to=settings.AUTH_USER_MODEL)),
-                ('task', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='app.Task')),
+                ('task', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='api.Task')),
             ],
             options={
                 'ordering': ['post_date'],

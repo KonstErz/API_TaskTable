@@ -101,13 +101,10 @@ class UserSerializer(serializers.ModelSerializer):
 
 class CommentSerializer(serializers.ModelSerializer):
     """
-    Serializes data to display a model for commenting on a task
-    when showing detailed information about a task and adding a comment.
+    Serializes data to display a model for commenting on a task when adding a comment.
     """
 
     post_date = serializers.DateTimeField(format='%d.%m.%Y %H:%M', read_only=True)
-    # author = UserSerializer(read_only=True)
-    # author = serializers.SlugRelatedField(read_only=True, slug_field='username')
 
     class Meta:
         model = Comment
@@ -115,34 +112,47 @@ class CommentSerializer(serializers.ModelSerializer):
         read_only_fields = ['author', 'post_date']
 
 
+class CommentDetailSerializer(CommentSerializer):
+    """
+    Serializes data to display a model for commenting on a task
+    while displaying detailed information about the task.
+    """
+
+    author = UserSerializer(read_only=True)
+
+
+class TaskSerializer(serializers.ModelSerializer):
+    """
+    Serializes data to display a Task model.
+    """
+
+    class Meta:
+        model = Task
+        fields = ['id', 'name', 'specification', 'due_date', 'creator',
+                  'performer', 'status']
+        read_only_fields = ['creator']
+
+
+class TaskListSerializer(TaskSerializer):
+    """
+    Serializes data to display a list of tasks.
+    """
+
+    creator = UserSerializer(read_only=True)
+    performer = UserSerializer()
+
+
 class TaskDetailSerializer(serializers.ModelSerializer):
     """
     Serializes data to display detailed information about a Task model.
     """
 
-    task_comments = CommentSerializer(many=True, read_only=True)
-    # creator = UserSerializer(read_only=True)
-    # performer = UserSerializer()
-    # creator = serializers.SlugRelatedField(read_only=True, slug_field='username')
-    # performer = serializers.SlugRelatedField(queryset=User.objects.all(), slug_field='username')
+    task_comments = CommentDetailSerializer(many=True, read_only=True)
+    creator = UserSerializer(read_only=True)
+    performer = UserSerializer()
 
     class Meta:
         model = Task
-        fields = ['id', 'name', 'specification', 'due_date', 'creator', 'performer', 'status', 'task_comments']
-        read_only_fields = ['creator']
-
-
-class TaskListSerializer(serializers.ModelSerializer):
-    """
-    Serializes data to display a list of tasks.
-    """
-
-    # creator = UserSerializer(read_only=True)
-    # performer = UserSerializer()
-    # creator = serializers.SlugRelatedField(read_only=True, slug_field='username')
-    # performer = serializers.SlugRelatedField(queryset=User.objects.all(), slug_field='username')
-
-    class Meta:
-        model = Task
-        fields = ['id', 'name', 'specification', 'due_date', 'creator', 'performer', 'status']
+        fields = ['id', 'name', 'specification', 'due_date', 'creator',
+                  'performer', 'status', 'task_comments']
         read_only_fields = ['creator']

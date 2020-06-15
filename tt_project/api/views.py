@@ -1,15 +1,15 @@
 from rest_framework.views import APIView
 from .serializers import (RegistrationSerializer, LoginSerializer,
                           TaskCreationSerializer, CommentAddingSerializer,
-                          TaskListSerializer, TaskDetailSerializer,
-                          CommentSerializer)
+                          TaskSerializer, TaskListSerializer,
+                          TaskDetailSerializer, CommentSerializer)
 from django.contrib.auth.models import User
 from rest_framework.authtoken.models import Token
 from rest_framework.response import Response
 from django.contrib.auth import authenticate, login, logout
 from rest_framework.permissions import IsAuthenticated
 from .models import Task, Comment
-from rest_framework import viewsets, status, filters
+from rest_framework import viewsets, filters
 from rest_framework.decorators import action
 from django.core.mail import send_mail
 
@@ -124,18 +124,21 @@ class TaskViewSet(viewsets.ModelViewSet):
     """
 
     permission_classes = [IsAuthenticated]
-    queryset = Task.objects.all().order_by('-due_date')
-    serializer_class = TaskListSerializer
+    queryset = Task.objects.all().select_related(
+        'creator', 'performer').prefetch_related('task_comments').order_by(
+        '-due_date')
+    serializer_class = TaskSerializer
     filter_backends = [filters.SearchFilter]
-    search_fields = ['name', 'performer__username']  # Search by performer is not available without a UserSerializer
+    search_fields = ['name', 'performer__username']
 
     def perform_create(self, serializer):
         serializer.save(creator=serializer.context['request'].user)
 
     def get_serializer_class(self):
-        if self.action == 'retrieve':
+        if self.action == 'list':
+            return TaskListSerializer
+        elif self.action == 'retrieve':
             return TaskDetailSerializer
-
         elif self.action == 'add_comment':
             return CommentSerializer
 
@@ -143,34 +146,34 @@ class TaskViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['post'])
     def add_comment(self, request, pk=None):
-        task = self.get_object()
-        serializer = CommentSerializer(data=request.data)
-        if serializer.is_valid():
-            Comment.objects.create(task=task, description=serializer.data['description'],
-                                   author=request.user)
-            task.save()
-            return Response({'status': 'comment added'})
-        else:
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        if not self.get_object():
+            return Response({'error': 'task does not exists'}, 404)
+
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save(author=request.user, task_id=pk)    # send mail?
+        return Response({'status': 'comment added'}, 201)
 
     """
     When creating or editing a task, an email is sent with information to the creator and performer.
     """
 
     def create(self, request, *args, **kwargs):
-        response = super(TaskViewSet, self).create(request, *args, **kwargs)
+        response = super().create(request, *args, **kwargs)
+        performer = User.objects.filter(id=response.data['performer']).first()
         send_mail('A new task has been created.',
-                  str(request.data),
+                  str(request.data),    # info must be humanized
                   'EMAIL_HOST_USER',
-                  [request.user.email],     # Add email to performer
+                  [request.user.email, performer.email],
                   fail_silently=False)
         return response
 
     def update(self, request, *args, **kwargs):
-        response = super(TaskViewSet, self).update(request, *args, **kwargs)
+        response = super().update(request, *args, **kwargs)
+        task = Task.objects.filter(id=response.data['id']).first()
         send_mail('Task has been changed.',
-                  str(request.data),
+                  str(request.data),    # info must be humanized
                   'EMAIL_HOST_USER',
-                  [request.user.email],  # Add email to performer
+                  [task.creator.email, task.performer.email],
                   fail_silently=False)
         return response
