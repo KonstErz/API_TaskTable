@@ -104,7 +104,8 @@ class CommentSerializer(serializers.ModelSerializer):
     Serializes data to display a model for commenting on a task when adding a comment.
     """
 
-    post_date = serializers.DateTimeField(format='%d.%m.%Y %H:%M', read_only=True)
+    post_date = serializers.DateTimeField(format='%d.%m.%Y %H:%M',
+                                          read_only=True)
 
     class Meta:
         model = Comment

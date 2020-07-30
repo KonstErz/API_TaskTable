@@ -10,11 +10,12 @@ class Task(models.Model):
 
     name = models.CharField(max_length=200, help_text='Enter a task name')
     specification = models.TextField(help_text='Enter a task specification')
-    due_date = models.DateField(null=True, blank=True)
-    creator = models.ForeignKey(User, on_delete=models.SET_NULL,
-                                null=True, blank=True, related_name='task_creator')
-    performer = models.ForeignKey(User, on_delete=models.SET_NULL,
-                                  null=True, blank=True, related_name='task_performer')
+    due_date = models.DateField(null=True, blank=True,
+                                help_text='Deadline for the task')
+    creator = models.ForeignKey(User, on_delete=models.SET_NULL, null=True,
+                                blank=True, related_name='task_creator')
+    performer = models.ForeignKey(User, on_delete=models.SET_NULL, null=True,
+                                  blank=True, related_name='task_performer')
 
     TASK_STATUS = (
         ('n', 'New'),
@@ -37,13 +38,14 @@ class Comment(models.Model):
     Model representing a comment against a task.
     """
 
-    task = models.ForeignKey(Task, on_delete=models.CASCADE, related_name='task_comments')
+    task = models.ForeignKey(Task, on_delete=models.CASCADE,
+                             related_name='task_comments')
     description = models.TextField(help_text='Enter a comment on the task here')
     author = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
     post_date = models.DateTimeField(auto_now=True)
 
     class Meta:
-        ordering = ['post_date']
+        ordering = ['-post_date']
 
     def __str__(self):
         if len(self.description) > 75:

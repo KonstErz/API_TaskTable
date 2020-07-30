@@ -11,7 +11,7 @@ from rest_framework.permissions import IsAuthenticated
 from .models import Task, Comment
 from rest_framework import viewsets, filters
 from rest_framework.decorators import action
-from django.core.mail import send_mail
+from .emails import basic_email_sender, comment_email_sender
 
 
 class RegistrationView(APIView):
@@ -34,7 +34,11 @@ class RegistrationView(APIView):
 
         Token.objects.create(user=user)
 
-        return Response({'Registration completed successfully. Your authorization token': user.auth_token.key})
+        context = {
+            'Success. Your authorization token': user.auth_token.key
+        }
+
+        return Response(context)
 
 
 class LoginView(APIView):
@@ -85,12 +89,18 @@ class TaskCreationView(APIView):
         name = serializer.validated_data['name']
         specification = serializer.validated_data['specification']
         due_date = serializer.validated_data['due_date']
-        performer = User.objects.filter(username=serializer.validated_data['performer']).first()
+        performer = User.objects.filter(username=serializer.validated_data[
+            'performer']).first()
 
-        task = Task.objects.create(name=name, specification=specification, due_date=due_date,
-                                   creator=creator, performer=performer, status='n')
+        task = Task.objects.create(name=name, specification=specification,
+                                   due_date=due_date, creator=creator,
+                                   performer=performer, status='n')
 
-        return Response({f"task '{task.name}' created successfully. Task id": task.id})
+        context = {
+            f"task '{task.name}' created successfully. Task id": task.id
+        }
+
+        return Response(context)
 
 
 class CommentAddingView(APIView):
@@ -105,13 +115,19 @@ class CommentAddingView(APIView):
         serializer = CommentAddingSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        task = Task.objects.filter(name=serializer.validated_data['task_name']).first()
+        task = Task.objects.filter(name=serializer.validated_data[
+            'task_name']).first()
         description = serializer.validated_data['description']
         author = User.objects.filter(username=request.user).first()
 
-        comment = Comment.objects.create(task=task, description=description, author=author)
+        Comment.objects.create(task=task, description=description,
+                               author=author)
 
-        return Response({'success': f"Comment on the task '{task}' was published successfully"}, 200)
+        context = {
+            'success': 'Comment on the task was published successfully'
+        }
+
+        return Response(context, 200)
 
 
 class TaskViewSet(viewsets.ModelViewSet):
@@ -121,6 +137,8 @@ class TaskViewSet(viewsets.ModelViewSet):
     Allows to create a new task, edit an existing task, and add comments to the task.
     Includes Search Filter by task name and performer name.
     Requesting user will be the creator of the task and author of the comment.
+    When creating/editing a task or adding a new comment to a task,
+    an email is sent with information to the creator and performer.
     """
 
     permission_classes = [IsAuthenticated]
@@ -151,29 +169,35 @@ class TaskViewSet(viewsets.ModelViewSet):
 
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        serializer.save(author=request.user, task_id=pk)    # send mail?
-        return Response({'status': 'comment added'}, 201)
+        serializer.save(author=request.user, task_id=pk)
 
-    """
-    When creating or editing a task, an email is sent with information to the creator and performer.
-    """
+        task = Task.objects.filter(id=pk).first()
+        comment = Comment.objects.filter(
+            task=task,
+            author=request.user,
+            description=request.data['description']
+        ).first()
+        recipients = [task.creator.email, task.performer.email]
+        title = 'A new comment has been added to the question'
+        comment_email_sender(task=task, comment=comment,
+                             title=title, recipients=recipients)
+
+        return Response({'status': 'comment added'}, 201)
 
     def create(self, request, *args, **kwargs):
         response = super().create(request, *args, **kwargs)
-        performer = User.objects.filter(id=response.data['performer']).first()
-        send_mail('A new task has been created.',
-                  str(request.data),    # info must be humanized
-                  'EMAIL_HOST_USER',
-                  [request.user.email, performer.email],
-                  fail_silently=False)
+        task = Task.objects.filter(id=response.data['id']).first()
+        recipients = [task.creator.email, task.performer.email]
+        basic_email_sender(task=task,
+                           title='A new task has been created',
+                           recipients=recipients)
         return response
 
     def update(self, request, *args, **kwargs):
         response = super().update(request, *args, **kwargs)
         task = Task.objects.filter(id=response.data['id']).first()
-        send_mail('Task has been changed.',
-                  str(request.data),    # info must be humanized
-                  'EMAIL_HOST_USER',
-                  [task.creator.email, task.performer.email],
-                  fail_silently=False)
+        recipients = [task.creator.email, task.performer.email]
+        basic_email_sender(task=task,
+                           title='Task has been changed',
+                           recipients=recipients)
         return response
