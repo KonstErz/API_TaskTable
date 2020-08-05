@@ -127,3 +127,12 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# static & media files
+staticfiles/
+mediafiles/
+
+# Environments
+env.dev
+env.prod
+env.db

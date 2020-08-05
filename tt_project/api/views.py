@@ -11,6 +11,7 @@ from rest_framework.permissions import IsAuthenticated
 from .models import Task, Comment
 from rest_framework import viewsets, filters
 from rest_framework.decorators import action
+from django.conf import settings
 from .emails import basic_email_sender, comment_email_sender
 
 
@@ -171,33 +172,40 @@ class TaskViewSet(viewsets.ModelViewSet):
         serializer.is_valid(raise_exception=True)
         serializer.save(author=request.user, task_id=pk)
 
-        task = Task.objects.filter(id=pk).first()
-        comment = Comment.objects.filter(
-            task=task,
-            author=request.user,
-            description=request.data['description']
-        ).first()
-        recipients = [task.creator.email, task.performer.email]
-        title = 'A new comment has been added to the question'
-        comment_email_sender(task=task, comment=comment,
-                             title=title, recipients=recipients)
+        if settings.EMAIL_HOST_USER != 'YourEmail@gmail.com':
+            task = Task.objects.filter(id=pk).first()
+            comment = Comment.objects.filter(
+                task=task,
+                author=request.user,
+                description=request.data['description']
+            ).first()
+            recipients = [task.creator.email, task.performer.email]
+            title = 'A new comment has been added to the question'
+            comment_email_sender(task=task, comment=comment,
+                                 title=title, recipients=recipients)
 
         return Response({'status': 'comment added'}, 201)
 
     def create(self, request, *args, **kwargs):
         response = super().create(request, *args, **kwargs)
-        task = Task.objects.filter(id=response.data['id']).first()
-        recipients = [task.creator.email, task.performer.email]
-        basic_email_sender(task=task,
-                           title='A new task has been created',
-                           recipients=recipients)
+
+        if settings.EMAIL_HOST_USER != 'YourEmail@gmail.com':
+            task = Task.objects.filter(id=response.data['id']).first()
+            recipients = [task.creator.email, task.performer.email]
+            basic_email_sender(task=task,
+                               title='A new task has been created',
+                               recipients=recipients)
+
         return response
 
     def update(self, request, *args, **kwargs):
         response = super().update(request, *args, **kwargs)
-        task = Task.objects.filter(id=response.data['id']).first()
-        recipients = [task.creator.email, task.performer.email]
-        basic_email_sender(task=task,
-                           title='Task has been changed',
-                           recipients=recipients)
+
+        if settings.EMAIL_HOST_USER != 'YourEmail@gmail.com':
+            task = Task.objects.filter(id=response.data['id']).first()
+            recipients = [task.creator.email, task.performer.email]
+            basic_email_sender(task=task,
+                               title='Task has been changed',
+                               recipients=recipients)
+
         return response
