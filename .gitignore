@@ -136,3 +136,8 @@ mediafiles/
 env.dev
 env.prod
 env.db
+
+# Docker volumes
+postgres_data/
+rabbitmq-data/
+redis-data/

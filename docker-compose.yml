@@ -2,7 +2,12 @@ version: '3.8'
 
 services:
     web:
-        build: ./tt_project
+        build:
+            context: ./tt_project
+            dockerfile: Dockerfile
+        restart: always
+        entrypoint:
+            - /usr/src/app/entrypoint-tasktable.sh
         command: python3 manage.py runserver 0.0.0.0:8000
         volumes:
             - ./tt_project/:/usr/src/app/
@@ -10,14 +15,91 @@ services:
             - 8000:8000
         env_file:
             - ./env.dev
+        depends_on:
+            - db
+            - rabbitmq
+            - redis
+        networks:
+            - net_inner
+
     db:
         image: postgres:12.0-alpine
+        restart: always
         volumes:
             - postgres_data:/var/lib/postgresql/data/
         environment:
             - POSTGRES_USER=tasktable
             - POSTGRES_PASSWORD=tasktable
             - POSTGRES_DB=tasktable_dev
+        networks:
+            - net_inner
+
+    rabbitmq:
+        image: rabbitmq:3.8.6-management-alpine
+        restart: always
+        volumes:
+            - ./rabbitmq-data/:/var/lib/rabbitmq/
+        networks:
+            - net_inner
+
+    redis:
+        image: redis:6.0.6-alpine
+        volumes:
+            - ./redis-data/:/data/
+        networks:
+            - net_inner
+
+    worker_default:
+        build: ./tt_project
+        restart: always
+        entrypoint:
+            - /usr/src/app/entrypoint-celery-worker-default.sh
+        env_file:
+            - ./env.dev
+        depends_on:
+            - db
+            - rabbitmq
+            - web
+        volumes:
+            - ./tt_project/:/usr/src/app/
+        networks:
+            - net_inner
+
+    celery_beat:
+        build: ./tt_project
+        restart: always
+        entrypoint:
+            - /usr/src/app/entrypoint-celery-beat.sh
+        env_file:
+            - ./env.dev
+        depends_on:
+            - db
+            - rabbitmq
+            - web
+        volumes:
+            - ./tt_project/:/usr/src/app/
+        networks:
+            - net_inner
+
+    flower_dashboard:
+        build: ./tt_project
+        restart: always
+        entrypoint:
+            - /usr/src/app/entrypoint-celery-flower.sh
+        ports:
+            - 5555:5555
+        env_file:
+            - ./env.dev
+        depends_on:
+            - web
+            - rabbitmq
+            - worker_default
+        networks:
+            - net_inner
 
 volumes:
     postgres_data:
+
+networks:
+    net_inner:
+        driver: bridge

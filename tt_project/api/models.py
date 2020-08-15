@@ -8,7 +8,8 @@ class Task(models.Model):
     with a specific status, deadline, creator and performer.
     """
 
-    name = models.CharField(max_length=200, help_text='Enter a task name')
+    name = models.CharField(unique=True, max_length=200,
+                            help_text='Enter a task name')
     specification = models.TextField(help_text='Enter a task specification')
     due_date = models.DateField(null=True, blank=True,
                                 help_text='Deadline for the task')

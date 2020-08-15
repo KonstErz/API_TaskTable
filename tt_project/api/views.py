@@ -1,18 +1,20 @@
 from rest_framework.views import APIView
 from .serializers import (RegistrationSerializer, LoginSerializer,
-                          TaskCreationSerializer, CommentAddingSerializer,
-                          TaskSerializer, TaskListSerializer,
+                          TaskCreationSerializer, TaskUpdateSerializer,
+                          CommentAddingSerializer, TaskSerializer,
+                          TaskPerformerSerializer, TaskListSerializer,
                           TaskDetailSerializer, CommentSerializer)
 from django.contrib.auth.models import User
 from rest_framework.authtoken.models import Token
 from rest_framework.response import Response
 from django.contrib.auth import authenticate, login, logout
 from rest_framework.permissions import IsAuthenticated
+from .permissions import CanChangeTask
 from .models import Task, Comment
+from django.conf import settings
+from api.tasks import basic_email_sender, comment_email_sender
 from rest_framework import viewsets, filters
 from rest_framework.decorators import action
-from django.conf import settings
-from .emails import basic_email_sender, comment_email_sender
 
 
 class RegistrationView(APIView):
@@ -39,7 +41,7 @@ class RegistrationView(APIView):
             'Success. Your authorization token': user.auth_token.key
         }
 
-        return Response(context)
+        return Response(context, 201)
 
 
 class LoginView(APIView):
@@ -58,7 +60,7 @@ class LoginView(APIView):
 
         if user is not None:
             login(request, user)
-            return Response({'Login successful. Your user id': user.id})
+            return Response({'Login successful. Your user id': user.id}, 200)
         else:
             return Response({'error': 'username or password invalid'}, 400)
 
@@ -77,6 +79,7 @@ class TaskCreationView(APIView):
     """
     The View class creates a new task with the default status 'New'.
     Requesting user will be the creator.
+    On success, an email is sent to the creator and performer with information.
     Returns the id of the new task.
     """
 
@@ -97,17 +100,73 @@ class TaskCreationView(APIView):
                                    due_date=due_date, creator=creator,
                                    performer=performer, status='n')
 
+        if settings.EMAIL_HOST_USER is not None:
+            basic_email_sender.apply_async(kwargs={
+                'task_id': task.id,
+                'title': 'A new task has been created'
+            }, queue='default')
+
         context = {
             f"task '{task.name}' created successfully. Task id": task.id
         }
 
-        return Response(context)
+        return Response(context, 201)
+
+
+class TaskUpdateView(APIView):
+    """
+    The View class updates an existing task.
+    Only the creator of the task can change the performer.
+    On success, an email is sent to the creator and performer with information.
+    Returns a message about successful task update.
+    """
+
+    permission_classes = [IsAuthenticated, CanChangeTask]
+
+    def put(self, request):
+        serializer = TaskUpdateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        task = Task.objects.filter(id=serializer.validated_data[
+            'task_id']).first()
+
+        self.check_object_permissions(request, task)
+
+        performer = User.objects.filter(username=serializer.validated_data[
+            'performer']).first()
+
+        if request.user != task.creator and performer != task.performer:
+            context = {
+                'Failure': 'You cannot change the task performer'
+            }
+            return Response(context, 403)
+
+        task.name = serializer.validated_data['name']
+        task.specification = serializer.validated_data['specification']
+        task.due_date = serializer.validated_data['due_date']
+        task.performer = performer
+        task.status = serializer.validated_data['status']
+        task.save()
+
+        if settings.EMAIL_HOST_USER is not None:
+            basic_email_sender.apply_async(kwargs={
+                'task_id': task.id,
+                'title': 'The task has been changed'
+            }, queue='default')
+
+        context = {
+            'Success': f"task '{task.name}' has been updated"
+        }
+
+        return Response(context, 200)
 
 
 class CommentAddingView(APIView):
     """
     The View class implements adding a comment to the specified task.
     Requesting user will be the author of the comment.
+    On success, an email is sent to the creator and performer with information.
+    Returns a message about the successful addition of a comment.
     """
 
     permission_classes = [IsAuthenticated]
@@ -121,14 +180,20 @@ class CommentAddingView(APIView):
         description = serializer.validated_data['description']
         author = User.objects.filter(username=request.user).first()
 
-        Comment.objects.create(task=task, description=description,
-                               author=author)
+        comment = Comment.objects.create(task=task, description=description,
+                                         author=author)
+
+        if settings.EMAIL_HOST_USER is not None:
+            comment_email_sender.apply_async(kwargs={
+                'task_id': task.id,
+                'comment_id': comment.id
+            }, queue='default')
 
         context = {
             'success': 'Comment on the task was published successfully'
         }
 
-        return Response(context, 200)
+        return Response(context, 201)
 
 
 class TaskViewSet(viewsets.ModelViewSet):
@@ -138,11 +203,12 @@ class TaskViewSet(viewsets.ModelViewSet):
     Allows to create a new task, edit an existing task, and add comments to the task.
     Includes Search Filter by task name and performer name.
     Requesting user will be the creator of the task and author of the comment.
+    Only the creator of the task can change the performer.
     When creating/editing a task or adding a new comment to a task,
     an email is sent with information to the creator and performer.
     """
 
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, CanChangeTask]
     queryset = Task.objects.all().select_related(
         'creator', 'performer').prefetch_related('task_comments').order_by(
         '-due_date')
@@ -160,52 +226,52 @@ class TaskViewSet(viewsets.ModelViewSet):
             return TaskDetailSerializer
         elif self.action == 'add_comment':
             return CommentSerializer
+        elif self.action == 'update':
+            task = Task.objects.filter(id=self.kwargs.get('pk')).first()
+            if self.request.user == task.creator:
+                return TaskSerializer
+            else:
+                return TaskPerformerSerializer
 
         return super().get_serializer_class()
 
-    @action(detail=True, methods=['post'])
+    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
     def add_comment(self, request, pk=None):
         if not self.get_object():
             return Response({'error': 'task does not exists'}, 404)
 
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        serializer.save(author=request.user, task_id=pk)
+        comment = serializer.save(author=request.user, task_id=pk)
 
-        if settings.EMAIL_HOST_USER != 'YourEmail@gmail.com':
-            task = Task.objects.filter(id=pk).first()
-            comment = Comment.objects.filter(
-                task=task,
-                author=request.user,
-                description=request.data['description']
-            ).first()
-            recipients = [task.creator.email, task.performer.email]
-            title = 'A new comment has been added to the question'
-            comment_email_sender(task=task, comment=comment,
-                                 title=title, recipients=recipients)
+        if settings.EMAIL_HOST_USER is not None:
+            comment_email_sender.apply_async(kwargs={
+                'task_id': pk,
+                'comment_id': comment.id
+            }, queue='default')
 
         return Response({'status': 'comment added'}, 201)
 
     def create(self, request, *args, **kwargs):
         response = super().create(request, *args, **kwargs)
 
-        if settings.EMAIL_HOST_USER != 'YourEmail@gmail.com':
-            task = Task.objects.filter(id=response.data['id']).first()
-            recipients = [task.creator.email, task.performer.email]
-            basic_email_sender(task=task,
-                               title='A new task has been created',
-                               recipients=recipients)
+        if settings.EMAIL_HOST_USER is not None:
+            task_id = response.data['id']
+            basic_email_sender.apply_async(kwargs={
+                'task_id': task_id,
+                'title': 'A new task has been created'
+            }, queue='default')
 
         return response
 
     def update(self, request, *args, **kwargs):
         response = super().update(request, *args, **kwargs)
 
-        if settings.EMAIL_HOST_USER != 'YourEmail@gmail.com':
-            task = Task.objects.filter(id=response.data['id']).first()
-            recipients = [task.creator.email, task.performer.email]
-            basic_email_sender(task=task,
-                               title='Task has been changed',
-                               recipients=recipients)
+        if settings.EMAIL_HOST_USER is not None:
+            task_id = response.data['id']
+            basic_email_sender.apply_async(kwargs={
+                'task_id': task_id,
+                'title': 'The task has been changed'
+            }, queue='default')
 
         return response
