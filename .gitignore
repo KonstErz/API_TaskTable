@@ -109,6 +109,9 @@ venv/
 ENV/
 env.bak/
 venv.bak/
+env.dev
+env.prod
+env.db
 
 # Spyder project settings
 .spyderproject
@@ -131,11 +134,6 @@ dmypy.json
 # static & media files
 staticfiles/
 mediafiles/
-
-# Environments
-env.dev
-env.prod
-env.db
 
 # Docker volumes
 postgres_data/
