@@ -34,7 +34,7 @@ It has fields:
 + **TOKENS**  
 It has fields:  
 *Key* - user authorization token created when a new user is registered in the system;  
-*User* - username (username user profile);  
+*User* - username (foreign key to the User model);  
 *Created* - date and time of token creation (user registration in the system)
 
 ## Authentication and Authorization Data
@@ -65,8 +65,8 @@ The API provides 6 main functional modules, which can be accessed either through
 
 (http://localhost:1337/api/registration/)
 
-Creates a new user in the system, a user authorization token in the system.
-Returns the authorization token of the new user.
+Creates a new user in the system.
+Returns the ID of the new user.
 
 ***Sample input content:***  
 `{"username": "Peter", "email": "pparker62@gmail.com", "password": "secretpasswd951"}`
@@ -81,8 +81,8 @@ where are the fields:
 
 (http://localhost:1337/api/login/)
 
-Authenticates the user in the system, logs the user into his profile, provides rights to conduct other operations in the system. 
-Returns the user id or error with status code 400 in case of authentication failure.
+Authenticates the user in the system, logs the user into his profile, provides access to conduct other operations in the system. 
+Returns the user's authorization token or error with status code 400 in case of authentication failure.
 
 ***Sample input content:***  
 `{"username": "Peter", "password": "secretpasswd951"}`
@@ -214,8 +214,10 @@ The *upload* app has a small function that you can use to upload your media. Use
 ### Quick start guide for starting a service on your local computer
 
 
-1. This project exists as a docker container, for its correct mounting and launch on your local computer you will need to install the current versions of the [Docker Engine](https://docs.docker.com/engine/install/) (ver. from *19.03.0* and higher). 
+1. This project exists as a docker container, for its correct mounting and launch on your local computer you will need to install the current versions of the [Docker Engine](https://docs.docker.com/engine/install/) (ver. from *19.03.0* and higher).
+
 2. To build a Docker image, you need files with environment variables *env.prod* and *env.db*. So rename the files *env.prod.example* and *env.db.example* from the repository accordingly. These files contain variables for the correct operation of the project. The values for the production environment are configured, pay attention to the *EMAIL_HOST_USER* and *EMAIL_HOST_PASSWORD* if you want to test how sending email works (see the section *"Sending Email"*).
+
 3. To mount the image and start the containers, from the project root folder, run the following command in the terminal:
 
     ```
@@ -243,7 +245,7 @@ The *upload* app has a small function that you can use to upload your media. Use
     tasktable_prod=# \q    # Exiting psql
     ```
 
-6. The project uses an Nginx server which acts as a reverse proxy for Gunicorn to handle client requests as well as serve up static and media files. Now you can go to the server http://localhost:1337/ in your browser to go to the Api Root of the project. Sign in under the credentials of the superuser you created (http://localhost:1337/admin/ or at http://localhost:1337/api/login/) and try to create several test objects of each type. You can create a new user (http://localhost:1337/api/registration/), tasks and comments to them using the functionality described in the section *"The main functionality of the application API"*. Also, you can go to http://localhost:5555/ to use the Flower Dashboard to monitor Celery tasks if you are using email sending.
+6. The project uses an Nginx server which acts as a reverse proxy for Gunicorn to handle client requests as well as serve up static and media files. You can go to the server http://localhost:1337/ in your browser to go to the Api Root of the project. Sign in under the credentials of the superuser you created (http://localhost:1337/admin/ or at http://localhost:1337/api/login/) and try to create several test objects of each type. You can create a new user (http://localhost:1337/api/registration/), tasks and comments to them using the functionality described in the section *"The main functionality of the application API"*. Also, you can go to http://localhost:5555/ to use the Flower Dashboard to monitor Celery tasks if you are using email sending.
 
 
 Other useful commands that may come in handy when working with the docker container of the project:

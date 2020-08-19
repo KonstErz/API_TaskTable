@@ -5,7 +5,6 @@ from .serializers import (RegistrationSerializer, LoginSerializer,
                           TaskPerformerSerializer, TaskListSerializer,
                           TaskDetailSerializer, CommentSerializer)
 from django.contrib.auth.models import User
-from rest_framework.authtoken.models import Token
 from rest_framework.response import Response
 from django.contrib.auth import authenticate, login, logout
 from rest_framework.permissions import IsAuthenticated
@@ -20,7 +19,7 @@ from rest_framework.decorators import action
 class RegistrationView(APIView):
     """
     The View class creates a new user and its authorization token.
-    Returns the authorization token of the new user.
+    Returns the ID of the new user.
     """
 
     def post(self, request):
@@ -35,20 +34,14 @@ class RegistrationView(APIView):
                                         email=email,
                                         password=password)
 
-        Token.objects.create(user=user)
-
-        context = {
-            'Success. Your authorization token': user.auth_token.key
-        }
-
-        return Response(context, 201)
+        return Response({'Success. User ID': user.id}, 201)
 
 
 class LoginView(APIView):
     """
     The View class logs the user in the system and returns its id,
     if such a user exists in the system.
-    Returns status code 400 for invalid data.
+    Returns the user's authorization token or 400 status code for invalid data.
     """
 
     def post(self, request):
@@ -60,7 +53,8 @@ class LoginView(APIView):
 
         if user is not None:
             login(request, user)
-            return Response({'Login successful. Your user id': user.id}, 200)
+            return Response({'Authorization':
+                            f'Token {user.auth_token.key}'}, 200)
         else:
             return Response({'error': 'username or password invalid'}, 400)
 
