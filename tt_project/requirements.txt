@@ -10,7 +10,7 @@ django-filter==2.3.0
 django-redis==4.12.1
 django-timezone-field==4.0
 djangorestframework==3.11.0
-flower==0.9.5
+flower==1.2.0
 gunicorn==20.0.4
 humanize==2.5.0
 kombu==4.6.11
